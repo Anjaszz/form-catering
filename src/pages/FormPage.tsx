@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Send, Loader2, CheckCircle2, AlertCircle, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
@@ -117,17 +117,17 @@ const FormPage = () => {
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 py-16">
+    <div className="min-h-screen flex items-center justify-center p-3 md:p-4 py-8 md:py-16">
       <div className="max-w-2xl w-full">
-        <div className="text-center mb-12">
-          <h1 className="text-6xl font-black text-gradient mb-2">Form Catering</h1>
-          <p className="text-slate-500 font-bold uppercase tracking-[0.3em]">Operational Portal</p>
+        <div className="text-center mb-8 md:mb-12">
+          <h1 className="text-4xl md:text-6xl font-black text-gradient mb-2">Form Catering</h1>
+          <p className="text-slate-500 font-bold uppercase tracking-[0.2em] md:tracking-[0.3em] text-[10px] md:text-base">Operational Portal</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="glass-card p-10 space-y-10">
+        <form onSubmit={handleSubmit} className="glass-card p-6 md:p-10 space-y-6 md:space-y-10">
           {fields.map((field) => (
-            <div key={field.id} className="space-y-4">
-              <label className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <div key={field.id} className="space-y-3 md:space-y-4">
+              <label className="text-xs md:text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <span className={cn("w-1.5 h-1.5 rounded-full", field.is_required ? "bg-rose-500" : "bg-slate-700")}></span>
                 {field.label}
               </label>
@@ -137,21 +137,21 @@ const FormPage = () => {
                   required={field.is_required}
                   type="text"
                   placeholder={`Masukkan ${field.label.toLowerCase()}`}
-                  className="w-full bg-slate-900/50 border border-slate-700/50 rounded-2xl py-4 px-6 outline-none focus:ring-4 focus:ring-brand-primary/20 focus:border-brand-primary transition-all font-medium text-lg"
+                  className="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl md:rounded-2xl py-3 md:py-4 px-4 md:px-6 outline-none focus:ring-4 focus:ring-brand-primary/20 focus:border-brand-primary transition-all font-medium text-base md:text-lg"
                   value={formData[field.label] || ''}
                   onChange={e => setFormData({...formData, [field.label]: e.target.value})}
                 />
               )}
 
               {field.type === 'radio' && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
                   {field.options.map((opt) => (
                     <button
                       key={opt}
                       type="button"
                       onClick={() => setFormData({...formData, [field.label]: opt})}
                       className={cn(
-                        "py-4 rounded-2xl border-2 font-black transition-all text-sm",
+                        "py-3 md:py-4 rounded-xl md:rounded-2xl border-2 font-black transition-all text-xs md:text-sm",
                         formData[field.label] === opt 
                           ? "bg-brand-primary/10 border-brand-primary text-white" 
                           : "bg-slate-900/30 border-slate-800 text-slate-600 hover:border-slate-700"
@@ -164,15 +164,20 @@ const FormPage = () => {
               )}
 
               {field.type === 'select' && (
-                <select 
-                  className="w-full bg-slate-900/50 border border-slate-700/50 rounded-2xl py-4 px-6 outline-none focus:ring-4 focus:ring-brand-primary/20 appearance-none font-black text-lg"
-                  value={formData[field.label]}
-                  onChange={e => setFormData({...formData, [field.label]: e.target.value})}
-                >
-                  {field.options.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+                <div className="relative group">
+                  <select 
+                    className="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl md:rounded-2xl py-3 md:py-4 px-4 md:px-6 outline-none focus:ring-4 focus:ring-brand-primary/20 focus:border-brand-primary appearance-none font-bold text-base md:text-lg transition-all cursor-pointer hover:bg-slate-800/50"
+                    value={formData[field.label]}
+                    onChange={e => setFormData({...formData, [field.label]: e.target.value})}
+                  >
+                    {field.options.map(opt => (
+                      <option key={opt} value={opt} className="bg-slate-900">{opt}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-4 md:right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-focus-within:text-brand-primary transition-colors">
+                    <ChevronDown className="w-5 h-5 md:w-6 md:h-6" />
+                  </div>
+                </div>
               )}
             </div>
           ))}

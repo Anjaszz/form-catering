@@ -120,41 +120,41 @@ const DashboardPage = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 md:p-12 max-w-7xl mx-auto">
-      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12">
+    <div className="min-h-screen p-4 md:p-12 max-w-7xl mx-auto">
+      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 md:mb-12">
         <div>
-          <h1 className="text-5xl font-black text-gradient flex items-center gap-4">
-            <LayoutDashboard className="w-12 h-12 text-brand-primary" />
+          <h1 className="text-3xl md:text-5xl font-black text-gradient flex items-center gap-3 md:gap-4">
+            <LayoutDashboard className="w-8 h-8 md:w-12 md:h-12 text-brand-primary" />
             Admin Panel
           </h1>
-          <p className="text-slate-400 mt-3 text-lg font-medium">Laporan Harian Dinamis</p>
+          <p className="text-slate-400 mt-2 md:mt-3 text-sm md:text-lg font-medium">Laporan Harian Dinamis</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <Link to="/admin/settings" className="flex items-center gap-2 p-4 px-6 glass rounded-2xl text-slate-300 hover:text-white transition-all">
-            <Settings className="w-5 h-5" />
-            Pengaturan Form
+        <div className="flex flex-row flex-wrap items-center gap-3">
+          <Link to="/admin/settings" className="flex-1 md:flex-none flex items-center justify-center gap-2 p-3 md:p-4 px-4 md:px-6 glass rounded-2xl text-slate-300 hover:text-white transition-all text-sm md:text-base">
+            <Settings className="w-4 h-4 md:w-5 md:h-5" />
+            <span className="whitespace-nowrap">Settings</span>
           </Link>
-          <button onClick={fetchData} className="flex items-center gap-2 p-4 px-6 glass rounded-2xl text-slate-300 hover:text-white transition-all">
-            <RefreshCcw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          <button onClick={fetchData} className="flex-1 md:flex-none flex items-center justify-center gap-2 p-3 md:p-4 px-4 md:px-6 glass rounded-2xl text-slate-300 hover:text-white transition-all text-sm md:text-base">
+            <RefreshCcw className={`w-4 h-4 md:w-5 md:h-5 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
       </header>
 
       {/* Summary Cards - Hari Ini Saja */}
-      <div className="mb-4 flex items-center gap-2 text-slate-500 font-bold uppercase text-xs tracking-widest">
+      <div className="mb-4 flex items-center gap-2 text-slate-500 font-bold uppercase text-[10px] md:text-xs tracking-widest pl-1">
         <Check className="w-4 h-4 text-emerald-500" /> Ringkasan Hari Ini ({format(new Date(), 'dd MMM yyyy')})
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-        <div className="glass-card p-10 group relative border-l-4 border-slate-700">
-          <p className="text-slate-500 text-xs font-black uppercase tracking-widest">Total Hari Ini</p>
-          <h3 className="text-6xl font-black mt-3">{todaySubmissions.length}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-10 md:mb-16">
+        <div className="glass-card p-6 md:p-10 group relative border-l-4 border-slate-700">
+          <p className="text-slate-500 text-[10px] md:text-xs font-black uppercase tracking-widest">Total Hari Ini</p>
+          <h3 className="text-4xl md:text-6xl font-black mt-2 md:mt-3">{todaySubmissions.length}</h3>
         </div>
         
-        <div className="glass-card p-10 group relative border-l-4 border-emerald-500">
-          <p className="text-slate-500 text-xs font-black uppercase tracking-widest text-emerald-500">Catering Biasa</p>
-          <h3 className="text-6xl font-black mt-3 text-emerald-400">
+        <div className="glass-card p-6 md:p-10 group relative border-l-4 border-emerald-500">
+          <p className="text-slate-500 text-[10px] md:text-xs font-black uppercase tracking-widest text-emerald-500">Catering Biasa</p>
+          <h3 className="text-4xl md:text-6xl font-black mt-2 md:mt-3 text-emerald-400">
             {todaySubmissions.filter(s => {
               const key = Object.keys(s.payload || {}).find(k => k.toLowerCase().includes('biasa'));
               return key && s.payload[key] === 'Pesan';
@@ -162,9 +162,9 @@ const DashboardPage = () => {
           </h3>
         </div>
 
-        <div className="glass-card p-10 group relative border-l-4 border-brand-secondary">
-          <p className="text-slate-500 text-xs font-black uppercase tracking-widest text-brand-secondary">Catering Overtime</p>
-          <h3 className="text-6xl font-black mt-3 text-brand-secondary">
+        <div className="glass-card p-6 md:p-10 group relative border-l-4 border-brand-secondary">
+          <p className="text-slate-500 text-[10px] md:text-xs font-black uppercase tracking-widest text-brand-secondary">Catering Overtime</p>
+          <h3 className="text-4xl md:text-6xl font-black mt-2 md:mt-3 text-brand-secondary">
             {todaySubmissions.filter(s => {
               const key = Object.keys(s.payload || {}).find(k => k.toLowerCase().includes('overtime'));
               return key && s.payload[key] === 'Pesan';
@@ -173,14 +173,14 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
-        <h2 className="text-3xl font-black uppercase tracking-tight">Data Per Hari</h2>
-        <div className="relative group max-w-sm w-full">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-brand-primary" />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 mb-6 md:mb-8">
+        <h2 className="text-xl md:text-3xl font-black uppercase tracking-tight">Data Per Hari</h2>
+        <div className="relative group w-full md:max-w-sm">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-slate-500 group-focus-within:text-brand-primary" />
           <input 
             type="text" 
-            placeholder="Search data..."
-            className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl py-4 pl-12 pr-6 focus:outline-none focus:ring-2 focus:ring-brand-primary/50 font-bold"
+            placeholder="Cari data..."
+            className="w-full bg-slate-900/50 border border-slate-800 rounded-xl md:rounded-2xl py-3 md:py-4 pl-10 md:pl-12 pr-6 focus:outline-none focus:ring-2 focus:ring-brand-primary/50 font-bold text-sm md:text-base transition-all"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
