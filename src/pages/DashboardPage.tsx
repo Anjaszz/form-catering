@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -6,20 +6,16 @@ import {
   Download, 
   RefreshCcw, 
   Search, 
-  Coffee, 
-  Moon, 
   Check, 
   ChevronDown, 
   ChevronUp, 
   Calendar, 
-  Settings,
-  HelpCircle
+  Settings
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { format, isToday, parseISO } from 'date-fns';
-import { cn } from '../lib/utils';
 
 interface FormField {
   id: string;
