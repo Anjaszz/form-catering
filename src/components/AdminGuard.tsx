@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, ArrowRight, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Lock, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 interface AdminGuardProps {
   children: React.ReactNode;
