@@ -21,7 +21,6 @@ import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { format, isToday, parseISO } from 'date-fns';
-import { cn } from '../lib/utils';
 
 interface FormField {
   id: string;
