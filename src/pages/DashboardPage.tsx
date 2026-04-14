@@ -10,16 +10,24 @@ import {
   ChevronDown, 
   ChevronUp, 
   Calendar, 
-  Settings
+  Settings,
+  Edit2,
+  Trash2,
+  Save,
+  X,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { format, isToday, parseISO } from 'date-fns';
+import { cn } from '../lib/utils';
 
 interface FormField {
   id: string;
   label: string;
+  type: string;
+  options?: string[];
 }
 
 interface Submission {
@@ -34,11 +42,16 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  
+  // Edit State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingSubmission, setEditingSubmission] = useState<Submission | null>(null);
+  const [editPayload, setEditPayload] = useState<Record<string, any>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch Dynamic Fields for Columns
       const { data: fieldsData } = await supabase
         .from('form_fields')
         .select('*')
@@ -46,7 +59,6 @@ const DashboardPage = () => {
       
       setFields(fieldsData || []);
 
-      // 2. Fetch Submissions
       const { data: subData, error } = await supabase
         .from('submissions')
         .select('*')
@@ -65,15 +77,12 @@ const DashboardPage = () => {
     fetchData();
   }, []);
 
-  // Filter today's data for summary
   const todaySubmissions = useMemo(() => 
     submissions.filter(s => isToday(parseISO(s.created_at))),
   [submissions]);
 
-  // Group by Date
   const groupedData = useMemo(() => {
     const sorted = [...submissions].filter(s => {
-      // Search in all payload values
       const searchStr = search.toLowerCase();
       return Object.values(s.payload || {}).some(val => 
         String(val).toLowerCase().includes(searchStr)
@@ -100,11 +109,21 @@ const DashboardPage = () => {
       });
       return row;
     });
+    // Calculate Summary Values
+    const totalData = data.length;
+    
+    const biasaKey = fields.find(f => f.label.toLowerCase().includes('biasa'))?.label;
+    const totalBiasa = data.filter(s => biasaKey && s.payload?.[biasaKey] === 'Pesan').length;
 
-    // Simple Summary for Excel
+    const overtimeKey = fields.find(f => f.label.toLowerCase().includes('overtime'))?.label;
+    const totalOvertime = data.filter(s => overtimeKey && s.payload?.[overtimeKey] === 'Pesan').length;
+
     const summaryRows = [
-      {},
-      { 'Jam': 'TOTAL DATA', [fields[0]?.label || 'Info']: data.length }
+      {}, // Empty row
+      { 'Jam': 'RINGKASAN LAPORAN', [fields[0]?.label || 'Info']: '' },
+      { 'Jam': 'Total Data', [fields[0]?.label || 'Info']: totalData },
+      { 'Jam': 'Total Pesan Biasa', [fields[0]?.label || 'Info']: totalBiasa },
+      { 'Jam': 'Total Pesan Overtime', [fields[0]?.label || 'Info']: totalOvertime }
     ];
 
     const finalData = [...exportData, ...summaryRows];
@@ -113,6 +132,45 @@ const DashboardPage = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan");
     XLSX.writeFile(workbook, `laporan_${date}.xlsx`);
     toast.success(`Laporan ${date} berhasil diunduh`);
+  };
+
+  // Action Handlers
+  const openEditModal = (sub: Submission) => {
+    setEditingSubmission(sub);
+    setEditPayload({ ...sub.payload });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingSubmission) return;
+    setSavingEdit(true);
+    try {
+      const { error } = await supabase
+        .from('submissions')
+        .update({ payload: editPayload })
+        .eq('id', editingSubmission.id);
+
+      if (error) throw error;
+      toast.success('Data berhasil diperbarui');
+      setIsEditModalOpen(false);
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Hapus data ini secara permanen?')) return;
+    try {
+      const { error } = await supabase.from('submissions').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Data berhasil dihapus');
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
   };
 
   return (
@@ -127,7 +185,7 @@ const DashboardPage = () => {
         </div>
 
         <div className="flex flex-row flex-wrap items-center gap-3">
-          <Link to="/admin/settings" className="flex-1 md:flex-none flex items-center justify-center gap-2 p-3 md:p-4 px-4 md:px-6 glass rounded-2xl text-slate-300 hover:text-white transition-all text-sm md:text-base">
+          <Link to="/admin/settings" className="flex-1 md:flex-none flex items-center justify-center gap-2 p-3 md:p-4 px-4 md:px-6 glass rounded-2xl text-slate-300 hover:text-white transition-all text-sm md:text-base text-center">
             <Settings className="w-4 h-4 md:w-5 md:h-5" />
             <span className="whitespace-nowrap">Settings</span>
           </Link>
@@ -138,7 +196,7 @@ const DashboardPage = () => {
         </div>
       </header>
 
-      {/* Summary Cards - Hari Ini Saja */}
+      {/* Summary Cards */}
       <div className="mb-4 flex items-center gap-2 text-slate-500 font-bold uppercase text-[10px] md:text-xs tracking-widest pl-1">
         <Check className="w-4 h-4 text-emerald-500" /> Ringkasan Hari Ini ({format(new Date(), 'dd MMM yyyy')})
       </div>
@@ -188,7 +246,7 @@ const DashboardPage = () => {
           <div key={date} className="glass overflow-hidden rounded-3xl border border-white/5">
             <div 
               onClick={() => toggleGroup(date)}
-              className="p-4 md:p-5 flex flex-col md:flex-row items-center justify-between gap-4 cursor-pointer hover:bg-white/5 transition-all"
+              className="p-4 md:p-5 flex flex-col md:flex-row items-center justify-between gap-4 cursor-pointer hover:bg-white/5 transition-all text-center md:text-left"
             >
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-brand-primary/10 rounded-xl text-brand-primary">
@@ -203,11 +261,11 @@ const DashboardPage = () => {
               <div className="flex items-center gap-4">
                 <button
                   onClick={(e) => { e.stopPropagation(); exportDailyExcel(date, items); }}
-                  className="flex items-center gap-2 p-3 px-6 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-xl font-bold text-sm transition-all"
+                  className="flex items-center gap-2 p-3 px-6 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-600/10"
                 >
                   <Download className="w-4 h-4" /> Excel
                 </button>
-                {openGroups[date] ? <ChevronUp className="w-6 h-6" /> : <ChevronDown className="w-6 h-6" />}
+                {openGroups[date] ? <ChevronUp className="w-6 h-6 text-slate-600" /> : <ChevronDown className="w-6 h-6 text-slate-600" />}
               </div>
             </div>
 
@@ -222,19 +280,36 @@ const DashboardPage = () => {
                           {fields.map(f => (
                             <th key={f.id} className="p-4">{f.label}</th>
                           ))}
+                          <th className="p-4 text-center">Aksi</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
                         {items.map((s) => (
                           <tr key={s.id} className="hover:bg-white/5 transition-colors">
-                            <td className="p-4 text-slate-500 font-bold text-xs">
+                            <td className="p-4 text-slate-500 font-bold text-xs whitespace-nowrap">
                               {format(parseISO(s.created_at), 'HH:mm')}
                             </td>
                             {fields.map(f => (
-                              <td key={f.id} className="p-4 font-medium">
+                              <td key={f.id} className="p-4 font-medium min-w-[120px]">
                                 {String(s.payload?.[f.label] || '-')}
                               </td>
                             ))}
+                            <td className="p-4">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => openEditModal(s)}
+                                  className="p-2 text-slate-500 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-lg transition-all"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(s.id)}
+                                  className="p-2 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -246,6 +321,56 @@ const DashboardPage = () => {
           </div>
         ))}
       </div>
+
+      {/* Edit Submission Modal */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="glass-card w-full max-w-lg p-8 space-y-6 relative max-h-[90vh] overflow-y-auto">
+              <button onClick={() => setIsEditModalOpen(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white"><X className="w-6 h-6" /></button>
+              
+              <div>
+                <h2 className="text-2xl font-black">Edit Laporan</h2>
+                <p className="text-slate-500 text-sm font-bold uppercase tracking-widest mt-1">ID: {editingSubmission?.id.slice(0, 8)}</p>
+              </div>
+
+              <div className="space-y-5">
+                {fields.map(f => (
+                  <div key={f.id} className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1">{f.label}</label>
+                    {f.type === 'text' ? (
+                      <input 
+                        type="text"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-brand-primary"
+                        value={editPayload[f.label] || ''}
+                        onChange={e => setEditPayload({...editPayload, [f.label]: e.target.value})}
+                      />
+                    ) : (
+                      <select 
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-brand-primary font-bold appearance-none"
+                        value={editPayload[f.label] || ''}
+                        onChange={e => setEditPayload({...editPayload, [f.label]: e.target.value})}
+                      >
+                        {f.options?.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button onClick={() => setIsEditModalOpen(false)} className="flex-1 py-4 rounded-xl font-bold bg-slate-800 hover:bg-slate-700">Batal</button>
+                <button disabled={savingEdit} onClick={handleSaveEdit} className="flex-[2] py-4 rounded-xl font-black bg-brand-primary text-white flex items-center justify-center gap-2 hover:shadow-lg transition-all active:scale-95 disabled:opacity-50">
+                  {savingEdit ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                  Simpan Perubahan
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

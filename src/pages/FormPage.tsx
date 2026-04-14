@@ -4,6 +4,8 @@ import { Send, Loader2, CheckCircle2, AlertCircle, ChevronDown } from 'lucide-re
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 interface FormField {
   id: string;
@@ -121,6 +123,11 @@ const FormPage = () => {
       <div className="max-w-2xl w-full">
         <div className="text-center mb-8 md:mb-12">
           <h1 className="text-4xl md:text-6xl font-black text-gradient mb-2">Form Catering</h1>
+          <div className="flex items-center justify-center gap-2 text-slate-400 font-bold mb-4">
+            <span className="px-3 py-1 bg-white/5 rounded-full text-xs md:text-sm border border-white/5">
+              {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: id })}
+            </span>
+          </div>
           <p className="text-slate-500 font-bold uppercase tracking-[0.2em] md:tracking-[0.3em] text-[10px] md:text-base">Operational Portal</p>
         </div>
 
