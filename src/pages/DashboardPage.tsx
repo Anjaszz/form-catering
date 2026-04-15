@@ -20,7 +20,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
-import { format, isToday, parseISO } from 'date-fns';
+import { format, isToday, parseISO, isSameMonth } from 'date-fns';
 
 interface FormField {
   id: string;
@@ -47,6 +47,9 @@ const DashboardPage = () => {
   const [editingSubmission, setEditingSubmission] = useState<Submission | null>(null);
   const [editPayload, setEditPayload] = useState<Record<string, any>>({});
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Month Download State
+  const [isMonthModalOpen, setIsMonthModalOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -100,6 +103,14 @@ const DashboardPage = () => {
     setOpenGroups(prev => ({ ...prev, [date]: !prev[date] }));
   };
 
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    submissions.forEach(s => {
+      months.add(format(parseISO(s.created_at), 'yyyy-MM'));
+    });
+    return Array.from(months).sort((a, b) => b.localeCompare(a));
+  }, [submissions]);
+
   const exportDailyExcel = (date: string, data: Submission[]) => {
     const exportData = data.map(s => {
       const row: Record<string, any> = { 'Jam': format(parseISO(s.created_at), 'HH:mm') };
@@ -133,9 +144,14 @@ const DashboardPage = () => {
     toast.success(`Laporan ${date} berhasil diunduh`);
   };
 
-  const exportAllToExcel = () => {
-    if (Object.keys(groupedData).length === 0) {
-      toast.error('Tidak ada data untuk diunduh');
+  const exportMonthlyExcel = () => {
+    const now = new Date();
+    const monthlyData = Object.entries(groupedData).filter(([date]) => 
+      isSameMonth(parseISO(date), now)
+    );
+
+    if (monthlyData.length === 0) {
+      toast.error('Tidak ada data di bulan ini untuk diunduh');
       return;
     }
 
@@ -143,7 +159,9 @@ const DashboardPage = () => {
       const workbook = XLSX.utils.book_new();
 
       // Sort dates descending for sheets
-      const sortedDates = Object.keys(groupedData).sort((a, b) => b.localeCompare(a));
+      const sortedDates = monthlyData
+        .map(([date]) => date)
+        .sort((a, b) => b.localeCompare(a));
 
       sortedDates.forEach(date => {
         const data = groupedData[date];
@@ -176,12 +194,68 @@ const DashboardPage = () => {
         XLSX.utils.book_append_sheet(workbook, worksheet, date);
       });
 
-      XLSX.writeFile(workbook, `laporan_lengkap_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`);
-      toast.success('Semua laporan berhasil diunduh dalam satu file');
+      XLSX.writeFile(workbook, `laporan_bulan_${format(now, 'MMM_yyyy')}.xlsx`);
+      toast.success(`Laporan bulan ${format(now, 'MMMM')} berhasil diunduh`);
     } catch (error: any) {
       toast.error(`Gagal mengunduh: ${error.message}`);
     }
   };
+  const exportSpecificMonth = (monthYear: string) => {
+    const targetDate = parseISO(`${monthYear}-01`);
+    const itemsInMonth = submissions.filter(s => isSameMonth(parseISO(s.created_at), targetDate));
+    
+    if (itemsInMonth.length === 0) {
+      toast.error('Tidak ada data di bulan tersebut');
+      return;
+    }
+
+    const grouped = itemsInMonth.reduce((acc, curr) => {
+      const dateKey = format(parseISO(curr.created_at), 'yyyy-MM-dd');
+      if (!acc[dateKey]) acc[dateKey] = [];
+      acc[dateKey].push(curr);
+      return acc;
+    }, {} as Record<string, Submission[]>);
+
+    try {
+      const workbook = XLSX.utils.book_new();
+      const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+
+      sortedDates.forEach(date => {
+        const data = grouped[date];
+        const exportData = data.map(s => {
+          const row: Record<string, any> = { 'Jam': format(parseISO(s.created_at), 'HH:mm') };
+          fields.forEach(f => {
+            row[f.label] = s.payload?.[f.label] || '-';
+          });
+          return row;
+        });
+
+        const totalData = data.length;
+        const biasaKey = fields.find(f => f.label.toLowerCase().includes('biasa'))?.label;
+        const totalBiasa = data.filter(s => biasaKey && s.payload?.[biasaKey] === 'Pesan').length;
+        const overtimeKey = fields.find(f => f.label.toLowerCase().includes('overtime'))?.label;
+        const totalOvertime = data.filter(s => overtimeKey && s.payload?.[overtimeKey] === 'Pesan').length;
+
+        const summaryRows = [
+          {},
+          { 'Jam': 'RINGKASAN LAPORAN', [fields[0]?.label || 'Info']: '' },
+          { 'Jam': 'Total Data', [fields[0]?.label || 'Info']: totalData },
+          { 'Jam': 'Total Pesan Biasa', [fields[0]?.label || 'Info']: totalBiasa },
+          { 'Jam': 'Total Pesan Overtime', [fields[0]?.label || 'Info']: totalOvertime }
+        ];
+
+        const worksheet = XLSX.utils.json_to_sheet([...exportData, ...summaryRows]);
+        XLSX.utils.book_append_sheet(workbook, worksheet, date);
+      });
+
+      XLSX.writeFile(workbook, `laporan_bulan_${format(targetDate, 'MMM_yyyy')}.xlsx`);
+      toast.success(`Laporan bulan ${format(targetDate, 'MMMM yyyy')} berhasil diunduh`);
+      setIsMonthModalOpen(false);
+    } catch (error: any) {
+      toast.error(`Gagal: ${error.message}`);
+    }
+  };
+
 
 
   // Action Handlers
@@ -236,12 +310,21 @@ const DashboardPage = () => {
 
         <div className="flex flex-row flex-wrap items-center gap-3">
           <button 
-            onClick={exportAllToExcel}
+            onClick={exportMonthlyExcel}
             className="flex-1 md:flex-none flex items-center justify-center gap-2 p-3 md:p-4 px-4 md:px-6 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-2xl transition-all text-sm md:text-base font-black shadow-lg shadow-emerald-600/10"
           >
             <Download className="w-4 h-4 md:w-5 md:h-5" />
-            <span className="whitespace-nowrap">Unduh Semua</span>
+            <span className="whitespace-nowrap">Bulan Ini</span>
           </button>
+          
+          <button 
+            onClick={() => setIsMonthModalOpen(true)}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 p-3 md:p-4 px-4 md:px-6 glass rounded-2xl text-slate-300 hover:text-white transition-all text-sm md:text-base font-bold"
+          >
+            <Calendar className="w-4 h-4 md:w-5 md:h-5 text-brand-primary" />
+            <span className="whitespace-nowrap">Pilih Bulan</span>
+          </button>
+
           <Link to="/admin/settings" className="flex-1 md:flex-none flex items-center justify-center gap-2 p-3 md:p-4 px-4 md:px-6 glass rounded-2xl text-slate-300 hover:text-white transition-all text-sm md:text-base text-center">
             <Settings className="w-4 h-4 md:w-5 md:h-5" />
             <span className="whitespace-nowrap">Settings</span>
@@ -251,6 +334,7 @@ const DashboardPage = () => {
             Refresh
           </button>
         </div>
+
 
       </header>
 
@@ -429,8 +513,52 @@ const DashboardPage = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Month Selection Modal */}
+      <AnimatePresence>
+        {isMonthModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="glass-card w-full max-w-md p-8 relative">
+              <button onClick={() => setIsMonthModalOpen(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white"><X className="w-6 h-6" /></button>
+              
+              <div className="mb-6">
+                <h2 className="text-2xl font-black flex items-center gap-2">
+                  <Calendar className="w-6 h-6 text-brand-primary" />
+                  Pilih Bulan
+                </h2>
+                <p className="text-slate-500 text-sm font-bold uppercase tracking-widest mt-1">Unduh Laporan Per Bulan</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                {availableMonths.map(monthYear => (
+                  <button
+                    key={monthYear}
+                    onClick={() => exportSpecificMonth(monthYear)}
+                    className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-brand-primary/20 rounded-2xl border border-white/5 hover:border-brand-primary/50 transition-all font-bold group"
+                  >
+                    <span className="text-lg group-hover:text-brand-primary">
+                      {format(parseISO(`${monthYear}-01`), 'MMMM yyyy')}
+                    </span>
+                    <div className="p-2 rounded-lg bg-white/5 group-hover:bg-brand-primary/20 text-slate-500 group-hover:text-brand-primary transition-all">
+                      <Download className="w-5 h-5" />
+                    </div>
+                  </button>
+                ))}
+                
+                {availableMonths.length === 0 && (
+                  <div className="text-center py-12 text-slate-500">
+                    <Calendar className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                    <p className="font-bold uppercase tracking-widest text-xs">Belum ada data tersedia</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
 export default DashboardPage;
+
