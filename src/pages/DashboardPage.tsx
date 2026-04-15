@@ -133,6 +133,57 @@ const DashboardPage = () => {
     toast.success(`Laporan ${date} berhasil diunduh`);
   };
 
+  const exportAllToExcel = () => {
+    if (Object.keys(groupedData).length === 0) {
+      toast.error('Tidak ada data untuk diunduh');
+      return;
+    }
+
+    try {
+      const workbook = XLSX.utils.book_new();
+
+      // Sort dates descending for sheets
+      const sortedDates = Object.keys(groupedData).sort((a, b) => b.localeCompare(a));
+
+      sortedDates.forEach(date => {
+        const data = groupedData[date];
+        const exportData = data.map(s => {
+          const row: Record<string, any> = { 'Jam': format(parseISO(s.created_at), 'HH:mm') };
+          fields.forEach(f => {
+            row[f.label] = s.payload?.[f.label] || '-';
+          });
+          return row;
+        });
+
+        const totalData = data.length;
+        const biasaKey = fields.find(f => f.label.toLowerCase().includes('biasa'))?.label;
+        const totalBiasa = data.filter(s => biasaKey && s.payload?.[biasaKey] === 'Pesan').length;
+        const overtimeKey = fields.find(f => f.label.toLowerCase().includes('overtime'))?.label;
+        const totalOvertime = data.filter(s => overtimeKey && s.payload?.[overtimeKey] === 'Pesan').length;
+
+        const summaryRows = [
+          {},
+          { 'Jam': 'RINGKASAN LAPORAN', [fields[0]?.label || 'Info']: '' },
+          { 'Jam': 'Total Data', [fields[0]?.label || 'Info']: totalData },
+          { 'Jam': 'Total Pesan Biasa', [fields[0]?.label || 'Info']: totalBiasa },
+          { 'Jam': 'Total Pesan Overtime', [fields[0]?.label || 'Info']: totalOvertime }
+        ];
+
+        const finalData = [...exportData, ...summaryRows];
+        const worksheet = XLSX.utils.json_to_sheet(finalData);
+        
+        // Sheet name format: yyyy-MM-dd
+        XLSX.utils.book_append_sheet(workbook, worksheet, date);
+      });
+
+      XLSX.writeFile(workbook, `laporan_lengkap_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`);
+      toast.success('Semua laporan berhasil diunduh dalam satu file');
+    } catch (error: any) {
+      toast.error(`Gagal mengunduh: ${error.message}`);
+    }
+  };
+
+
   // Action Handlers
   const openEditModal = (sub: Submission) => {
     setEditingSubmission(sub);
@@ -184,6 +235,13 @@ const DashboardPage = () => {
         </div>
 
         <div className="flex flex-row flex-wrap items-center gap-3">
+          <button 
+            onClick={exportAllToExcel}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 p-3 md:p-4 px-4 md:px-6 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-2xl transition-all text-sm md:text-base font-black shadow-lg shadow-emerald-600/10"
+          >
+            <Download className="w-4 h-4 md:w-5 md:h-5" />
+            <span className="whitespace-nowrap">Unduh Semua</span>
+          </button>
           <Link to="/admin/settings" className="flex-1 md:flex-none flex items-center justify-center gap-2 p-3 md:p-4 px-4 md:px-6 glass rounded-2xl text-slate-300 hover:text-white transition-all text-sm md:text-base text-center">
             <Settings className="w-4 h-4 md:w-5 md:h-5" />
             <span className="whitespace-nowrap">Settings</span>
@@ -193,6 +251,7 @@ const DashboardPage = () => {
             Refresh
           </button>
         </div>
+
       </header>
 
       {/* Summary Cards */}
